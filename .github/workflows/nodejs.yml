@@ -1,0 +1,296 @@
+name: Node CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - hotfix-**
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - develop
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  install:
+    name: 🔍 Install node modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache npm
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: npm-
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        id: cache-node-modules
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+        env:
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+  build:
+    name: 🔨 Build packages
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+        env:
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+      - name: Build
+        run: npm run build
+        env:
+          CI: true
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+  lint:
+    name: ✨ Lint
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+        env:
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+      - name: Lint
+        run: npm run lint --max-warnings=0
+        env:
+          CI: true
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+  test:
+    name: 🧪 Test (${{ matrix.shard }})
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        shard: ['1/2', '2/2']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+        env:
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+      - name: Test
+        run: npm test -- --runInBand --shard=${{ matrix.shard }} --detectOpenHandles
+        env:
+          CI: true
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+  e2e:
+    name: 🔁 e2e Test
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      # https://docs.github.com/en/actions/using-containerized-services/creating-redis-service-containers#running-jobs-directly-on-the-runner-machine
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      # https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers#running-jobs-directly-on-the-runner-machine
+      postgres:
+        image: postgis/postgis:14-3.2
+        env:
+          POSTGRES_PASSWORD: supersecret
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+        env:
+          NODE_OPTIONS: '--max-old-space-size=7168'
+
+      - name: Run migrations
+        run: 'npm run typeorm:run'
+        env:
+          CI: true
+          TZ: UTC
+          NODE_OPTIONS: '--max-old-space-size=7168'
+          TYPEORM_DATABASE: postgres
+          TYPEORM_HOST: localhost
+          TYPEORM_PASSWORD: supersecret
+          TYPEORM_PORT: 5432
+          TYPEORM_USERNAME: postgres
+          REDIS_QUEUE_HOST: localhost
+          REDIS_QUEUE_PORT: 6379
+
+      - name: Test
+        run: 'npm run test:e2e -- --detectOpenHandles'
+        env:
+          CI: true
+          TZ: UTC
+          NODE_OPTIONS: '--max-old-space-size=7168'
+          TYPEORM_DATABASE: postgres
+          TYPEORM_HOST: localhost
+          TYPEORM_PASSWORD: supersecret
+          TYPEORM_PORT: 5432
+          TYPEORM_USERNAME: postgres
+          REDIS_QUEUE_HOST: localhost
+          REDIS_QUEUE_PORT: 6379
+
+  deploy:
+    name: 🚀 Deploy
+    needs: [build, lint, test, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ github.ref_name == 'main' && 'Production' || 'Development'  }}
+      url: 'http://nestjs-devops.us-west-2.elasticbeanstalk.com/'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: modules-${{ hashFiles('yarn.lock') }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install AWS CLI and Elastic Beanstalk CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install --upgrade awscli
+          pip3 install --upgrade awsebcli
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          role-session-name: deploy-api-session
+          aws-region: ${{ secrets.AWS_REGION }}
+          output-credentials: true
+
+      - name: Set Elastic Beanstalk environment
+        run: eb use nestjs-devops
+
+      - name: Deploy to Elastic Beanstalk
+        run: eb deploy nestjs-devops --debug
