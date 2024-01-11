@@ -25,14 +25,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version-file: .nvmrc
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: bun install
 
   build:
     name: 🔨 Build packages
@@ -44,17 +43,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version-file: .nvmrc
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: bun install
 
       - name: Build
-        run: npm run build
+        run: bun run build
         env:
           CI: true
           NODE_OPTIONS: '--max-old-space-size=7168'
@@ -81,17 +79,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version-file: .nvmrc
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: bun install
 
       - name: Lint
-        run: npm run lint --max-warnings=0
+        run: bun run lint --max-warnings=0
         env:
           CI: true
           NODE_OPTIONS: '--max-old-space-size=7168'
@@ -109,14 +106,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version-file: .nvmrc
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: bun install
 
       - name: Test
         run: npm test -- --runInBand --shard=${{ matrix.shard }} --detectOpenHandles
@@ -160,17 +156,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version-file: .nvmrc
-          cache: 'npm'
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: bun install
 
       - name: Run migrations
-        run: 'npm run typeorm:run'
+        run: 'bun run typeorm:run'
         env:
           CI: true
           TZ: UTC
@@ -184,7 +179,7 @@ jobs:
           REDIS_QUEUE_PORT: 6379
 
       - name: Test
-        run: 'npm run test:e2e -- --detectOpenHandles'
+        run: 'bun run test:e2e -- --detectOpenHandles'
         env:
           CI: true
           TZ: UTC
@@ -208,12 +203,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: 'npm'
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
