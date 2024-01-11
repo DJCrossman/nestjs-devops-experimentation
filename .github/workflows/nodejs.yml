@@ -23,34 +23,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Cache npm
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
-          restore-keys: npm-
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        id: cache-node-modules
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          cache: 'npm'
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm install
-        env:
-          NODE_OPTIONS: '--max-old-space-size=7168'
+        run: npm ci
 
   build:
     name: 🔨 Build packages
@@ -60,26 +42,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          cache: 'npm'
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm install
-        env:
-          NODE_OPTIONS: '--max-old-space-size=7168'
+        run: npm ci
 
       - name: Build
         run: npm run build
@@ -87,6 +59,18 @@ jobs:
           CI: true
           NODE_OPTIONS: '--max-old-space-size=7168'
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nestjs-devops-api-${{ github.sha }}
+          retention-days: 1
+          path: |
+            dist
+            .ebextensions
+            .platform
+            Procfile
+            package.json
+            package-lock.json
   lint:
     name: ✨ Lint
     needs: install
@@ -95,26 +79,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          cache: 'npm'
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm install
-        env:
-          NODE_OPTIONS: '--max-old-space-size=7168'
+        run: npm ci
 
       - name: Lint
         run: npm run lint --max-warnings=0
@@ -133,26 +107,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          cache: 'npm'
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm install
-        env:
-          NODE_OPTIONS: '--max-old-space-size=7168'
+        run: npm ci
 
       - name: Test
         run: npm test -- --runInBand --shard=${{ matrix.shard }} --detectOpenHandles
@@ -194,26 +158,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}-${{ hashFiles('yarn.lock') }}
+          cache: 'npm'
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm install
-        env:
-          NODE_OPTIONS: '--max-old-space-size=7168'
+        run: npm ci
 
       - name: Run migrations
         run: 'npm run typeorm:run'
@@ -252,27 +206,19 @@ jobs:
       name: ${{ github.ref_name == 'main' && 'Production' || 'Development'  }}
       url: 'http://nestjs-devops.us-west-2.elasticbeanstalk.com/'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          cache: 'npm'
 
-      - name: Cache node_modules
-        uses: actions/cache@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: modules-${{ hashFiles('yarn.lock') }}
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build application
-        run: npm run build
+          name: nestjs-devops-api-${{ github.sha }}
 
       - name: Install AWS CLI and Elastic Beanstalk CLI
         run: |
